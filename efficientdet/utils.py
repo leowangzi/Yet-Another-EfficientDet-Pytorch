@@ -16,10 +16,10 @@ class BBoxTransform(nn.Module):
         Returns:
 
         """
-        y_centers_a = (anchors[..., 0] + anchors[..., 2]) / 2
-        x_centers_a = (anchors[..., 1] + anchors[..., 3]) / 2
-        ha = anchors[..., 2] - anchors[..., 0]
-        wa = anchors[..., 3] - anchors[..., 1]
+        x_centers_a = anchors[..., 0]
+        y_centers_a = anchors[..., 1]
+        wa = anchors[..., 2]
+        ha = anchors[..., 3]
 
         w = regression[..., 3].exp() * wa
         h = regression[..., 2].exp() * ha
@@ -130,6 +130,14 @@ class Anchors(nn.Module):
         anchor_boxes = np.vstack(boxes_all)
 
         anchor_boxes = torch.from_numpy(anchor_boxes.astype(dtype)).to(image.device)
+        
+        # transform
+        y_centers_a = (anchor_boxes[..., 0] + anchor_boxes[..., 2]) / 2
+        x_centers_a = (anchor_boxes[..., 1] + anchor_boxes[..., 3]) / 2
+        ha = anchor_boxes[..., 2] - anchor_boxes[..., 0]
+        wa = anchor_boxes[..., 3] - anchor_boxes[..., 1]
+        
+        anchor_boxes = torch.stack([x_centers_a, y_centers_a, wa, ha], 1)
         anchor_boxes = anchor_boxes.unsqueeze(0)
 
         # save it for later use to reduce overhead

@@ -411,7 +411,8 @@ class EfficientNet(nn.Module):
                 drop_connect_rate *= float(idx) / len(self.model._blocks)
             x = block(x, drop_connect_rate=drop_connect_rate)
 
-            if block._depthwise_conv.stride == [2, 2]:
+            #if block._depthwise_conv.stride == [2, 2]:
+            if block._depthwise_conv.stride == (2, 2):  # modified by lichao
                 feature_maps.append(last_x)
             elif idx == len(self.model._blocks) - 1:
                 feature_maps.append(x)

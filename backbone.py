@@ -11,7 +11,7 @@ from efficientnet.utils import calculate_output_image_size
 
 
 class EfficientDetBackbone(nn.Module):
-    def __init__(self, num_classes=80, compound_coef=0, load_weights=False, **kwargs):
+    def __init__(self, num_classes=80, compound_coef=0, load_weights=False, onnx_export=False, **kwargs):
         super(EfficientDetBackbone, self).__init__()
         self.compound_coef = compound_coef
 
@@ -37,22 +37,20 @@ class EfficientDetBackbone(nn.Module):
 
         num_anchors = len(self.aspect_ratios) * self.num_scales
         head_image_size = calculate_output_image_size(self.input_sizes[compound_coef], 8)
-        #print(head_image_size)
-        #exit(1)
 
         self.bifpn = nn.Sequential(
             *[BiFPN(self.fpn_num_filters[self.compound_coef],
                     conv_channel_coef[compound_coef],
-                    True if _ == 0 else False,
+                    True if _ == 0 else False, onnx_export=onnx_export,
                     attention=True if compound_coef < 6 else False, image_size=head_image_size)
               for _ in range(self.fpn_cell_repeats[compound_coef])])
 
         self.num_classes = num_classes
         self.regressor = Regressor(in_channels=self.fpn_num_filters[self.compound_coef], num_anchors=num_anchors,
-                                   num_layers=self.box_class_repeats[self.compound_coef], image_size=head_image_size)
+                                   num_layers=self.box_class_repeats[self.compound_coef], onnx_export=onnx_export, image_size=head_image_size)
         self.classifier = Classifier(in_channels=self.fpn_num_filters[self.compound_coef], num_anchors=num_anchors,
                                      num_classes=num_classes,
-                                     num_layers=self.box_class_repeats[self.compound_coef], image_size=head_image_size)
+                                     num_layers=self.box_class_repeats[self.compound_coef], onnx_export=onnx_export, image_size=head_image_size)
 
         self.anchors = Anchors(anchor_scale=self.anchor_scale[compound_coef], **kwargs)
 
@@ -64,8 +62,6 @@ class EfficientDetBackbone(nn.Module):
                 m.eval()
 
     def forward(self, inputs):
-        max_size = inputs.shape[-1]
-
         _, p3, p4, p5 = self.backbone_net(inputs)
 
         features = (p3, p4, p5)

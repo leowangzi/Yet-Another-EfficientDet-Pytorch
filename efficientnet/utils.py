@@ -11,7 +11,7 @@ import torch
 from torch import nn
 from torch.nn import functional as F
 from torch.utils import model_zoo
-from .utils_extra import Conv2dStaticSamePadding
+# from .utils_extra import Conv2dStaticSamePadding
 
 ########################################################################
 ############### HELPERS FUNCTIONS FOR MODEL ARCHITECTURE ###############
@@ -92,6 +92,39 @@ def drop_connect(inputs, p, training):
     binary_tensor = torch.floor(random_tensor)
     output = inputs / keep_prob * binary_tensor
     return output
+
+
+def get_width_and_height_from_size(x):
+    """Obtain height and width from x.
+    Args:
+        x (int, tuple or list): Data size.
+    Returns:
+        size: A tuple or list (H,W).
+    """
+    if isinstance(x, int):
+        return x, x
+    if isinstance(x, list) or isinstance(x, tuple):
+        return x
+    else:
+        raise TypeError()
+
+
+def calculate_output_image_size(input_image_size, stride):
+    """Calculates the output image size when using Conv2dSamePadding with a stride.
+       Necessary for static padding. Thanks to mannatsingh for pointing this out.
+    Args:
+        input_image_size (int, tuple or list): Size of input image.
+        stride (int, tuple or list): Conv2d operation's stride.
+    Returns:
+        output_image_size: A list [H,W].
+    """
+    if input_image_size is None:
+        return None
+    image_height, image_width = get_width_and_height_from_size(input_image_size)
+    stride = stride if isinstance(stride, int) else stride[0]
+    image_height = int(math.ceil(image_height / stride))
+    image_width = int(math.ceil(image_width / stride))
+    return [image_height, image_width]
 
 
 def get_same_padding_conv2d(image_size=None):
@@ -311,3 +344,106 @@ def load_pretrained_weights(model, model_name, load_fc=True, advprop=False):
         res = model.load_state_dict(state_dict, strict=False)
         assert set(res.missing_keys) == set(['_fc.weight', '_fc.bias']), 'issue loading pretrained weights'
     print('Loaded pretrained weights for {}'.format(model_name))
+
+
+
+
+class Conv2dStaticSamePadding(nn.Module):
+    """
+    created by Zylo117
+    The real keras/tensorflow conv2d with same padding
+    """
+
+    def __init__(self, in_channels, out_channels, kernel_size, stride=1, bias=True, groups=1, dilation=1, image_size=None, **kwargs):
+        super().__init__()
+        self.conv = nn.Conv2d(in_channels, out_channels, kernel_size, stride=stride,
+                              bias=bias, groups=groups)
+        self.stride = self.conv.stride
+        # self.conv.stride = self.stride if len(self.stride) == 2 else [self.stride[0]] * 2  
+        self.kernel_size = self.conv.kernel_size
+        self.dilation = self.conv.dilation
+
+        if isinstance(self.stride, int):
+            self.stride = [self.stride] * 2
+        elif len(self.stride) == 1:
+            self.stride = [self.stride[0]] * 2
+
+        self.conv.stride = self.stride  ## added by wanglichao
+
+        if isinstance(self.kernel_size, int):
+            self.kernel_size = [self.kernel_size] * 2
+        elif len(self.kernel_size) == 1:
+            self.kernel_size = [self.kernel_size[0]] * 2
+
+        assert image_size is not None
+        h, w = image_size if type(image_size) == list else [image_size, image_size]
+
+        h_step = math.ceil(w / self.stride[1])
+        v_step = math.ceil(h / self.stride[0])
+        h_cover_len = self.stride[1] * (h_step - 1) + 1 + (self.kernel_size[1] - 1)
+        v_cover_len = self.stride[0] * (v_step - 1) + 1 + (self.kernel_size[0] - 1)
+
+        extra_h = h_cover_len - w
+        extra_v = v_cover_len - h
+
+        left = extra_h // 2
+        right = extra_h - left
+        top = extra_v // 2
+        bottom = extra_v - top
+
+        self.static_padding = nn.ZeroPad2d((left, right, top, bottom))
+
+    def forward(self, x):
+        x = self.static_padding(x)
+        x = self.conv(x)
+        
+        return x
+
+
+class MaxPool2dStaticSamePadding(nn.Module):
+    """
+    created by Zylo117
+    The real keras/tensorflow MaxPool2d with same padding
+    """
+
+    def __init__(self, kernel_size, stride, image_size=None, **kwargs):
+        super().__init__()
+        self.pool = nn.MaxPool2d(kernel_size, stride, **kwargs)
+        self.stride = self.pool.stride
+        # self.pool.stride = self.stride if len(self.stride) == 2 else [self.stride[0]] * 2  ## added by liucheng
+        self.kernel_size = self.pool.kernel_size
+
+        if isinstance(self.stride, int):
+            self.stride = [self.stride] * 2
+        elif len(self.stride) == 1:
+            self.stride = [self.stride[0]] * 2
+
+        self.pool.stride = self.stride  ## added by wanglichao
+
+        if isinstance(self.kernel_size, int):
+            self.kernel_size = [self.kernel_size] * 2
+        elif len(self.kernel_size) == 1:
+            self.kernel_size = [self.kernel_size[0]] * 2
+
+        assert image_size is not None
+        h, w = image_size if type(image_size) == list else [image_size, image_size]
+
+        h_step = math.ceil(w / self.stride[1])
+        v_step = math.ceil(h / self.stride[0])
+        h_cover_len = self.stride[1] * (h_step - 1) + 1 + (self.kernel_size[1] - 1)
+        v_cover_len = self.stride[0] * (v_step - 1) + 1 + (self.kernel_size[0] - 1)
+
+        extra_h = h_cover_len - w
+        extra_v = v_cover_len - h
+
+        left = extra_h // 2
+        right = extra_h - left
+        top = extra_v // 2
+        bottom = extra_v - top
+
+        self.static_padding = nn.ZeroPad2d((left, right, top, bottom))
+
+    def forward(self, x):
+        x = self.static_padding(x)
+        x = self.pool(x)
+        return x

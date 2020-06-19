@@ -4,7 +4,9 @@ from torchvision.ops.boxes import nms as nms_torch
 
 from efficientnet import EfficientNet as EffNet
 from efficientnet.utils import MemoryEfficientSwish, Swish
-from efficientnet.utils_extra import Conv2dStaticSamePadding, MaxPool2dStaticSamePadding
+# from efficientnet.utils_extra import Conv2dStaticSamePadding, MaxPool2dStaticSamePadding
+from efficientnet.utils import Conv2dStaticSamePadding, MaxPool2dStaticSamePadding
+from efficientnet.utils import calculate_output_image_size
 
 
 def nms(dets, thresh):
@@ -16,7 +18,7 @@ class SeparableConvBlock(nn.Module):
     created by Zylo117
     """
 
-    def __init__(self, in_channels, out_channels=None, norm=True, activation=False, onnx_export=False):
+    def __init__(self, in_channels, out_channels=None, norm=True, activation=False, onnx_export=False, image_size=None):
         super(SeparableConvBlock, self).__init__()
         if out_channels is None:
             out_channels = in_channels
@@ -27,8 +29,8 @@ class SeparableConvBlock(nn.Module):
         # A: Confirmed, just pointwise_conv applies bias, depthwise_conv has no bias.
 
         self.depthwise_conv = Conv2dStaticSamePadding(in_channels, in_channels,
-                                                      kernel_size=3, stride=1, groups=in_channels, bias=False)
-        self.pointwise_conv = Conv2dStaticSamePadding(in_channels, out_channels, kernel_size=1, stride=1)
+                                                      kernel_size=3, stride=1, groups=in_channels, bias=False, image_size=image_size)
+        self.pointwise_conv = Conv2dStaticSamePadding(in_channels, out_channels, kernel_size=1, stride=1, image_size=image_size)
 
         self.norm = norm
         if self.norm:
@@ -57,7 +59,7 @@ class BiFPN(nn.Module):
     modified by Zylo117
     """
 
-    def __init__(self, num_channels, conv_channels, first_time=False, epsilon=1e-4, onnx_export=False, attention=True):
+    def __init__(self, num_channels, conv_channels, first_time=False, epsilon=1e-4, onnx_export=False, attention=True, image_size=None):
         """
 
         Args:
@@ -70,15 +72,21 @@ class BiFPN(nn.Module):
         """
         super(BiFPN, self).__init__()
         self.epsilon = epsilon
+        p3_image_size = calculate_output_image_size(image_size, 1)
+        p4_image_size = calculate_output_image_size(image_size, 2)
+        p5_image_size = calculate_output_image_size(image_size, 4)
+        p6_image_size = calculate_output_image_size(image_size, 8)
+        p7_image_size = calculate_output_image_size(image_size, 16)
+
         # Conv layers
-        self.conv6_up = SeparableConvBlock(num_channels, onnx_export=onnx_export)
-        self.conv5_up = SeparableConvBlock(num_channels, onnx_export=onnx_export)
-        self.conv4_up = SeparableConvBlock(num_channels, onnx_export=onnx_export)
-        self.conv3_up = SeparableConvBlock(num_channels, onnx_export=onnx_export)
-        self.conv4_down = SeparableConvBlock(num_channels, onnx_export=onnx_export)
-        self.conv5_down = SeparableConvBlock(num_channels, onnx_export=onnx_export)
-        self.conv6_down = SeparableConvBlock(num_channels, onnx_export=onnx_export)
-        self.conv7_down = SeparableConvBlock(num_channels, onnx_export=onnx_export)
+        self.conv6_up = SeparableConvBlock(num_channels, onnx_export=onnx_export, image_size=p6_image_size)
+        self.conv5_up = SeparableConvBlock(num_channels, onnx_export=onnx_export, image_size=p5_image_size)
+        self.conv4_up = SeparableConvBlock(num_channels, onnx_export=onnx_export, image_size=p4_image_size)
+        self.conv3_up = SeparableConvBlock(num_channels, onnx_export=onnx_export, image_size=p3_image_size)
+        self.conv4_down = SeparableConvBlock(num_channels, onnx_export=onnx_export, image_size=p4_image_size)
+        self.conv5_down = SeparableConvBlock(num_channels, onnx_export=onnx_export, image_size=p5_image_size)
+        self.conv6_down = SeparableConvBlock(num_channels, onnx_export=onnx_export, image_size=p6_image_size)
+        self.conv7_down = SeparableConvBlock(num_channels, onnx_export=onnx_export, image_size=p7_image_size)
 
         # Feature scaling layers
         self.p6_upsample = nn.Upsample(scale_factor=2, mode='nearest')
@@ -86,43 +94,43 @@ class BiFPN(nn.Module):
         self.p4_upsample = nn.Upsample(scale_factor=2, mode='nearest')
         self.p3_upsample = nn.Upsample(scale_factor=2, mode='nearest')
 
-        self.p4_downsample = MaxPool2dStaticSamePadding(3, 2)
-        self.p5_downsample = MaxPool2dStaticSamePadding(3, 2)
-        self.p6_downsample = MaxPool2dStaticSamePadding(3, 2)
-        self.p7_downsample = MaxPool2dStaticSamePadding(3, 2)
+        self.p4_downsample = MaxPool2dStaticSamePadding(3, 2, image_size=p3_image_size)
+        self.p5_downsample = MaxPool2dStaticSamePadding(3, 2, image_size=p4_image_size)
+        self.p6_downsample = MaxPool2dStaticSamePadding(3, 2, image_size=p5_image_size)
+        self.p7_downsample = MaxPool2dStaticSamePadding(3, 2, image_size=p6_image_size)
 
         self.swish = MemoryEfficientSwish() if not onnx_export else Swish()
 
         self.first_time = first_time
         if self.first_time:
             self.p5_down_channel = nn.Sequential(
-                Conv2dStaticSamePadding(conv_channels[2], num_channels, 1),
+                Conv2dStaticSamePadding(conv_channels[2], num_channels, 1, image_size=p5_image_size),
                 nn.BatchNorm2d(num_channels, momentum=0.01, eps=1e-3),
             )
             self.p4_down_channel = nn.Sequential(
-                Conv2dStaticSamePadding(conv_channels[1], num_channels, 1),
+                Conv2dStaticSamePadding(conv_channels[1], num_channels, 1, image_size=p4_image_size),
                 nn.BatchNorm2d(num_channels, momentum=0.01, eps=1e-3),
             )
             self.p3_down_channel = nn.Sequential(
-                Conv2dStaticSamePadding(conv_channels[0], num_channels, 1),
+                Conv2dStaticSamePadding(conv_channels[0], num_channels, 1, image_size=p3_image_size),
                 nn.BatchNorm2d(num_channels, momentum=0.01, eps=1e-3),
             )
 
             self.p5_to_p6 = nn.Sequential(
-                Conv2dStaticSamePadding(conv_channels[2], num_channels, 1),
+                Conv2dStaticSamePadding(conv_channels[2], num_channels, 1, image_size=p5_image_size),
                 nn.BatchNorm2d(num_channels, momentum=0.01, eps=1e-3),
-                MaxPool2dStaticSamePadding(3, 2)
+                MaxPool2dStaticSamePadding(3, 2, image_size=p5_image_size)
             )
             self.p6_to_p7 = nn.Sequential(
-                MaxPool2dStaticSamePadding(3, 2)
+                MaxPool2dStaticSamePadding(3, 2, image_size=p6_image_size)
             )
 
             self.p4_down_channel_2 = nn.Sequential(
-                Conv2dStaticSamePadding(conv_channels[1], num_channels, 1),
+                Conv2dStaticSamePadding(conv_channels[1], num_channels, 1, image_size=p4_image_size),
                 nn.BatchNorm2d(num_channels, momentum=0.01, eps=1e-3),
             )
             self.p5_down_channel_2 = nn.Sequential(
-                Conv2dStaticSamePadding(conv_channels[2], num_channels, 1),
+                Conv2dStaticSamePadding(conv_channels[2], num_channels, 1, image_size=p5_image_size),
                 nn.BatchNorm2d(num_channels, momentum=0.01, eps=1e-3),
             )
 
@@ -308,33 +316,64 @@ class Regressor(nn.Module):
     modified by Zylo117
     """
 
-    def __init__(self, in_channels, num_anchors, num_layers, onnx_export=False):
+    def __init__(self, in_channels, num_anchors, num_layers, onnx_export=False, image_size=None):
         super(Regressor, self).__init__()
         self.num_layers = num_layers
-        self.num_layers = num_layers
+        # self.num_layers = num_layers
 
-        self.conv_list = nn.ModuleList(
-            [SeparableConvBlock(in_channels, in_channels, norm=False, activation=False) for i in range(num_layers)])
+        # self.conv_list = nn.ModuleList(
+        #     [SeparableConvBlock(in_channels, in_channels, norm=False, activation=False) for i in range(num_layers)])
+
+        temp_image_size = image_size
+        conv_list = []
+        for _ in range(5):
+            c_list = nn.ModuleList([SeparableConvBlock(in_channels, in_channels, norm=False, activation=False, image_size=image_size) for i in range(num_layers)])
+            image_size = calculate_output_image_size(image_size, 2)
+            conv_list.append(c_list)
+        self.conv_list = nn.ModuleList(conv_list)
+
         self.bn_list = nn.ModuleList(
             [nn.ModuleList([nn.BatchNorm2d(in_channels, momentum=0.01, eps=1e-3) for i in range(num_layers)]) for j in
              range(5)])
-        self.header = SeparableConvBlock(in_channels, num_anchors * 4, norm=False, activation=False)
+        # self.header = SeparableConvBlock(in_channels, num_anchors * 4, norm=False, activation=False)
+        image_size = temp_image_size
+        h_list = []
+        for _ in range(5):
+            print(image_size)
+            h_list.append(SeparableConvBlock(in_channels, num_anchors * 4, norm=False, activation=False, image_size=image_size))
+            image_size = calculate_output_image_size(image_size, 2)
+        self.headers = nn.ModuleList(h_list)
+
         self.swish = MemoryEfficientSwish() if not onnx_export else Swish()
 
     def forward(self, inputs):
+        # feats = []
+        # for feat, bn_list in zip(inputs, self.bn_list):
+        #     for i, bn, conv in zip(range(self.num_layers), bn_list, self.conv_list):
+        #         feat = conv(feat)
+        #         feat = bn(feat)
+        #         feat = self.swish(feat)
+        #     feat = self.header(feat)
+
+        #     feat = feat.permute(0, 2, 3, 1)
+        #     feat = feat.contiguous().view(feat.shape[0], -1, 4)
+
+        #     feats.append(feat)
+
+        # feats = torch.cat(feats, dim=1)
         feats = []
-        for feat, bn_list in zip(inputs, self.bn_list):
-            for i, bn, conv in zip(range(self.num_layers), bn_list, self.conv_list):
+        for feat, bn_list, header, convs in zip(inputs, self.bn_list, self.headers, self.conv_list):
+            for _, bn, conv in zip(range(self.num_layers), bn_list, convs):
                 feat = conv(feat)
                 feat = bn(feat)
                 feat = self.swish(feat)
-            feat = self.header(feat)
+            
+            feat = header(feat)
 
             feat = feat.permute(0, 2, 3, 1)
             feat = feat.contiguous().view(feat.shape[0], -1, 4)
 
             feats.append(feat)
-
         feats = torch.cat(feats, dim=1)
 
         return feats
@@ -345,31 +384,63 @@ class Classifier(nn.Module):
     modified by Zylo117
     """
 
-    def __init__(self, in_channels, num_anchors, num_classes, num_layers, onnx_export=False):
+    def __init__(self, in_channels, num_anchors, num_classes, num_layers, onnx_export=False, image_size=None):
         super(Classifier, self).__init__()
         self.num_anchors = num_anchors
         self.num_classes = num_classes
         self.num_layers = num_layers
-        self.conv_list = nn.ModuleList(
-            [SeparableConvBlock(in_channels, in_channels, norm=False, activation=False) for i in range(num_layers)])
+        # self.conv_list = nn.ModuleList(
+        #     [SeparableConvBlock(in_channels, in_channels, norm=False, activation=False) for i in range(num_layers)])
+        temp_image_size = image_size
+        conv_list = []
+        for _ in range(5):
+            c_list = nn.ModuleList([SeparableConvBlock(in_channels, in_channels, norm=False, activation=False, image_size=image_size) for i in range(num_layers)])
+            image_size = calculate_output_image_size(image_size, 2)
+            conv_list.append(c_list)
+        self.conv_list = nn.ModuleList(conv_list)
+
         self.bn_list = nn.ModuleList(
             [nn.ModuleList([nn.BatchNorm2d(in_channels, momentum=0.01, eps=1e-3) for i in range(num_layers)]) for j in
              range(5)])
-        self.header = SeparableConvBlock(in_channels, num_anchors * num_classes, norm=False, activation=False)
+        # self.header = SeparableConvBlock(in_channels, num_anchors * num_classes, norm=False, activation=False)
+        image_size = temp_image_size
+        h_list = []
+        for i in range(5):
+            h_list.append(SeparableConvBlock(in_channels, num_anchors * num_classes, norm=False, activation=False, image_size=image_size))
+            image_size = calculate_output_image_size(image_size, 2)
+        self.headers = nn.ModuleList(h_list)
+
         self.swish = MemoryEfficientSwish() if not onnx_export else Swish()
 
     def forward(self, inputs):
+        # feats = []
+        # for feat, bn_list in zip(inputs, self.bn_list):
+        #     for i, bn, conv in zip(range(self.num_layers), bn_list, self.conv_list):
+        #         feat = conv(feat)
+        #         feat = bn(feat)
+        #         feat = self.swish(feat)
+        #     feat = self.header(feat)
+
+        #     feat = feat.permute(0, 2, 3, 1)
+        #     feat = feat.contiguous().view(feat.shape[0], feat.shape[1], feat.shape[2], self.num_anchors,
+        #                                   self.num_classes)
+        #     feat = feat.contiguous().view(feat.shape[0], -1, self.num_classes)
+
+        #     feats.append(feat)
+
+        # feats = torch.cat(feats, dim=1)
+        # feats = feats.sigmoid()
         feats = []
-        for feat, bn_list in zip(inputs, self.bn_list):
-            for i, bn, conv in zip(range(self.num_layers), bn_list, self.conv_list):
+        for feat, bn_list, header, convs in zip(inputs, self.bn_list, self.headers, self.conv_list):
+            for i, bn, conv in zip(range(self.num_layers), bn_list, convs):
                 feat = conv(feat)
                 feat = bn(feat)
                 feat = self.swish(feat)
-            feat = self.header(feat)
+            
+            feat = header(feat)
 
             feat = feat.permute(0, 2, 3, 1)
-            feat = feat.contiguous().view(feat.shape[0], feat.shape[1], feat.shape[2], self.num_anchors,
-                                          self.num_classes)
+            feat = feat.contiguous().view(feat.shape[0], feat.shape[1], feat.shape[2], self.num_anchors, self.num_classes)
             feat = feat.contiguous().view(feat.shape[0], -1, self.num_classes)
 
             feats.append(feat)
@@ -387,7 +458,7 @@ class EfficientNet(nn.Module):
 
     def __init__(self, compound_coef, load_weights=False):
         super(EfficientNet, self).__init__()
-        model = EffNet.from_pretrained(f'efficientnet-b{compound_coef}', load_weights)
+        model = EffNet.from_pretrained(f'efficientnet-b{compound_coef}', load_weights=load_weights)
         del model._conv_head
         del model._bn1
         del model._avg_pooling
@@ -411,8 +482,7 @@ class EfficientNet(nn.Module):
                 drop_connect_rate *= float(idx) / len(self.model._blocks)
             x = block(x, drop_connect_rate=drop_connect_rate)
 
-            #if block._depthwise_conv.stride == [2, 2]:
-            if block._depthwise_conv.stride == (2, 2):  # modified by lichao
+            if block._depthwise_conv.stride == (2, 2):
                 feature_maps.append(last_x)
             elif idx == len(self.model._blocks) - 1:
                 feature_maps.append(x)

@@ -25,9 +25,12 @@ dummy_input = torch.randn((1,3,768,768), dtype=torch.float32).to(device)
 
 model.load_state_dict(torch.load(f'../weights/efficientdet-d2_onnx.pth'))
 
+#inputs = torch.from_numpy(dummy_input)
+output = model(dummy_input)
+print("lamda")
+
 # opset_version can be changed to 10 or other number, based on your need
 torch.onnx.export(model, dummy_input,
                   '../convert/efficientdet-d2_onnx.onnx',
-                  verbose=False,
-                  input_names=['data'],
-                  opset_version=11)
+                  verbose=True,
+                  input_names=['data'])

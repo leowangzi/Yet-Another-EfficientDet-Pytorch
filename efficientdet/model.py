@@ -321,10 +321,22 @@ class Regressor(nn.Module):
     modified by Zylo117
     """
 
-    def __init__(self, in_channels, num_anchors, num_layers, onnx_export=False, image_size=None, batch_size=1):
+    def __init__(self, in_channels, num_anchors, num_layers, onnx_export=False, image_size=None, compound_coef=0, batch_size=1):
         super(Regressor, self).__init__()
         self.num_layers = num_layers
         self.batch_size = batch_size
+        self.compound_coef = compound_coef
+        self.index = [0,1,2,3,4]
+        self.feat_shape = [
+                [36864, 9216, 2304, 576, 144],
+                [57600, 14400, 3600, 900, 225],
+                [82944, 20736, 5184, 1296, 324],
+                [112896, 28224, 7056, 1764, 441],
+                [147456, 36864, 9216, 2304, 576],
+                [230400, 57600, 14400, 3600, 900],
+                [230400, 57600, 14400, 3600, 900],
+                [331776, 82944, 20736, 5184, 1296]
+                ]
         # self.num_layers = num_layers
 
         # self.conv_list = nn.ModuleList(
@@ -345,7 +357,6 @@ class Regressor(nn.Module):
         image_size = temp_image_size
         h_list = []
         for _ in range(5):
-            #print(image_size)
             h_list.append(SeparableConvBlock(in_channels, num_anchors * 4, norm=False, activation=False, image_size=image_size))
             image_size = calculate_output_image_size(image_size, 2)
         self.headers = nn.ModuleList(h_list)
@@ -368,7 +379,7 @@ class Regressor(nn.Module):
 
         # feats = torch.cat(feats, dim=1)
         feats = []
-        for feat, bn_list, header, convs in zip(inputs, self.bn_list, self.headers, self.conv_list):
+        for ids, feat, bn_list, header, convs in zip(self.index, inputs, self.bn_list, self.headers, self.conv_list):
             for _, bn, conv in zip(range(self.num_layers), bn_list, convs):
                 feat = conv(feat)
                 feat = bn(feat)
@@ -377,7 +388,9 @@ class Regressor(nn.Module):
             feat = header(feat)
 
             feat = feat.permute(0, 2, 3, 1)
-            feat = feat.contiguous().view(self.batch_size, -1, 4)
+            # feat = feat.contiguous().view(self.batch_size, -1, 4)
+            # feat = feat.contiguous().view(self.batch_size, self.feat_shape[self.compound_coef][ids], 4)
+            feat = feat.reshape(self.batch_size, self.feat_shape[self.compound_coef][ids], 4)
 
             feats.append(feat)
         feats = torch.cat(feats, dim=1)
@@ -398,8 +411,17 @@ class Classifier(nn.Module):
         self.batch_size = batch_size
         
         self.compound_coef = compound_coef
-        #print("compound_coef:", self.compound_coef)
         self.index = [0,1,2,3,4]
+        self.feat_shape = [
+                [36864, 9216, 2304, 576, 144],
+                [57600, 14400, 3600, 900, 225],
+                [82944, 20736, 5184, 1296, 324],
+                [112896, 28224, 7056, 1764, 441],
+                [147456, 36864, 9216, 2304, 576],
+                [230400, 57600, 14400, 3600, 900],
+                [230400, 57600, 14400, 3600, 900],
+                [331776, 82944, 20736, 5184, 1296]
+                ]
         self.feats_size = [
                 [
                     [4,64,64],
@@ -475,14 +497,13 @@ class Classifier(nn.Module):
         # self.header = SeparableConvBlock(in_channels, num_anchors * num_classes, norm=False, activation=False)
         image_size = temp_image_size
         h_list = []
+
         for i in range(5):
             h_list.append(SeparableConvBlock(in_channels, num_anchors * num_classes, norm=False, activation=False, image_size=image_size))
             image_size = calculate_output_image_size(image_size, 2)
         self.headers = nn.ModuleList(h_list)
 
         self.swish = MemoryEfficientSwish() if not onnx_export else Swish()
-
-
     def forward(self, inputs):
         # feats = []
         # for feat, bn_list in zip(inputs, self.bn_list):
@@ -511,25 +532,17 @@ class Classifier(nn.Module):
             feat = header(feat)
 
             feat = feat.permute(0, 2, 3, 1)
-            #print("feat[0]:", feat.shape[0])
-            #print("fixsize[0]:",self.feats_size[self.compound_coef][ids][0])
-            #print("feat[0]:", feat.shape[1])
-            #print("fixsize[0]:",self.feats_size[self.compound_coef][ids][1])
-            #print("feat[0]:", feat.shape[2])
-            #print("fixsize[0]:",self.feats_size[self.compound_coef][ids][2])
-
-
 
             # feat = feat.contiguous().view(feat.shape[0], feat.shape[1], feat.shape[2], self.num_anchors, self.num_classes)
             # feat = feat.contiguous().view(feat.shape[0], -1, self.num_classes)
-            feat = feat.contiguous().view(self.batch_size, self.feats_size[self.compound_coef][ids][1], self.feats_size[self.compound_coef][ids][2], self.num_anchors, self.num_classes)
-            feat = feat.contiguous().view(self.batch_size, -1, self.num_classes)
-
+            # feat = feat.contiguous().view(self.batch_size, self.feats_size[self.compound_coef][ids][1], self.feats_size[self.compound_coef][ids][2], self.num_anchors, self.num_classes)
+            # feat = feat.contiguous().view(self.batch_size, -1, self.num_classes)
+            # feat = feat.contiguous().view(self.batch_size, self.feat_shape[self.compound_coef][ids], self.num_classes)
+            feat = feat.reshape(self.batch_size, self.feat_shape[self.compound_coef][ids], self.num_classes)
             feats.append(feat)
 
         feats = torch.cat(feats, dim=1)
         feats = feats.sigmoid()
-
         return feats
 
 

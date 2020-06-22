@@ -392,11 +392,34 @@ class Conv2dStaticSamePadding(nn.Module):
         bottom = extra_v - top
 
         self.static_padding = nn.ZeroPad2d((left, right, top, bottom))
+        """self.left = self.right = self.top = self.bottom = 0
+        if self.stride[0] == 1:
+            if self.kernel_size[0] == 3:
+                self.left = 1
+                self.right = 1
+                self.top = 1
+                self.bottom = 1
+            elif self.kernel_size[0] == 5:
+                self.left = 2
+                self.right = 2
+                self.top = 2
+                self.bottom = 2
+        elif self.stride[0] == 2:
+            if self.kernel_size[0] == 3:
+                self.left = 0
+                self.top = 0
+                self.right = 1
+                self.bottom = 1
+            elif self.kernel_size[0] == 5:
+                self.left = 1
+                self.top = 1
+                self.right = 2
+                self.bottom = 2"""
 
     def forward(self, x):
         x = self.static_padding(x)
+        # x = F.pad(x, [self.left, self.right, self.top, self.bottom])
         x = self.conv(x)
-        
         return x
 
 
@@ -442,8 +465,32 @@ class MaxPool2dStaticSamePadding(nn.Module):
         bottom = extra_v - top
 
         self.static_padding = nn.ZeroPad2d((left, right, top, bottom))
+        """self.left = self.right = self.top = self.bottom = 0
+        if self.stride[0] == 1:
+            if self.kernel_size[0] == 3:
+                self.left = 1
+                self.right = 1
+                self.top = 1
+                self.bottom = 1
+            elif self.kernel_size[0] == 5:
+                self.left = 2
+                self.right = 2
+                self.top = 2
+                self.bottom = 2
+        elif self.stride[0] == 2:
+            if self.kernel_size[0] == 3:
+                self.left = 0
+                self.top = 0
+                self.right = 1
+                self.bottom = 1
+            elif self.kernel_size[0] == 5:
+                self.left = 1
+                self.top = 1
+                self.right = 2
+                self.bottom = 2"""
 
     def forward(self, x):
         x = self.static_padding(x)
+        # x = F.pad(x, [self.left, self.right, self.top, self.bottom])
         x = self.pool(x)
         return x

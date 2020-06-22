@@ -47,7 +47,7 @@ class EfficientDetBackbone(nn.Module):
 
         self.num_classes = num_classes
         self.regressor = Regressor(in_channels=self.fpn_num_filters[self.compound_coef], num_anchors=num_anchors,
-                                   num_layers=self.box_class_repeats[self.compound_coef], onnx_export=onnx_export, image_size=head_image_size, batch_size=batch_size)
+                                   num_layers=self.box_class_repeats[self.compound_coef], onnx_export=onnx_export, image_size=head_image_size, compound_coef=compound_coef, batch_size=batch_size)
         self.classifier = Classifier(in_channels=self.fpn_num_filters[self.compound_coef], num_anchors=num_anchors,
                                      num_classes=num_classes,
                                      num_layers=self.box_class_repeats[self.compound_coef], onnx_export=onnx_export, image_size=head_image_size, compound_coef=compound_coef, batch_size=batch_size)
@@ -70,7 +70,7 @@ class EfficientDetBackbone(nn.Module):
         regression = self.regressor(features)
         classification = self.classifier(features)
         anchors = self.anchors(inputs, inputs.dtype)
-
+        #return regression, classification
         return features, regression, classification, anchors
 
     def init_backbone(self, path):

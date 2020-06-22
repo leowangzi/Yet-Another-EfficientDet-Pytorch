@@ -345,7 +345,7 @@ class Regressor(nn.Module):
         image_size = temp_image_size
         h_list = []
         for _ in range(5):
-            print(image_size)
+            #print(image_size)
             h_list.append(SeparableConvBlock(in_channels, num_anchors * 4, norm=False, activation=False, image_size=image_size))
             image_size = calculate_output_image_size(image_size, 2)
         self.headers = nn.ModuleList(h_list)

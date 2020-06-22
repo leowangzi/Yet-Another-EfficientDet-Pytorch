@@ -11,7 +11,7 @@ from efficientnet.utils import calculate_output_image_size
 
 
 class EfficientDetBackbone(nn.Module):
-    def __init__(self, num_classes=80, compound_coef=0, load_weights=False, onnx_export=False, **kwargs):
+    def __init__(self, num_classes=80, compound_coef=0, load_weights=False, onnx_export=False, batch_size=1, **kwargs):
         super(EfficientDetBackbone, self).__init__()
         self.compound_coef = compound_coef
 
@@ -47,10 +47,10 @@ class EfficientDetBackbone(nn.Module):
 
         self.num_classes = num_classes
         self.regressor = Regressor(in_channels=self.fpn_num_filters[self.compound_coef], num_anchors=num_anchors,
-                                   num_layers=self.box_class_repeats[self.compound_coef], onnx_export=onnx_export, image_size=head_image_size)
+                                   num_layers=self.box_class_repeats[self.compound_coef], onnx_export=onnx_export, image_size=head_image_size, batch_size=batch_size)
         self.classifier = Classifier(in_channels=self.fpn_num_filters[self.compound_coef], num_anchors=num_anchors,
                                      num_classes=num_classes,
-                                     num_layers=self.box_class_repeats[self.compound_coef], onnx_export=onnx_export, image_size=head_image_size)
+                                     num_layers=self.box_class_repeats[self.compound_coef], onnx_export=onnx_export, image_size=head_image_size, compound_coef=compound_coef, batch_size=batch_size)
 
         self.anchors = Anchors(anchor_scale=self.anchor_scale[compound_coef], **kwargs)
 

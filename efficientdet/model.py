@@ -322,7 +322,7 @@ class BiFPN_infer(nn.Module):
     modified by Zylo117, Lichao
     """
 
-    def __init__(self, num_channels, conv_channels, first_time=False, epsilon=1e-4, onnx_export=False, attention=True, image_size=None):
+    def __init__(self, num_channels, conv_channels, first_time=False, index=0, epsilon=1e-4, onnx_export=False, attention=True, image_size=None):
         """
 
         Args:
@@ -407,6 +407,88 @@ class BiFPN_infer(nn.Module):
         self.p3_w1 = nn.Parameter(torch.ones(2, dtype=torch.float32), requires_grad=True)
         self.p3_w1_relu = nn.ReLU()
 
+        # hard code
+        self.weight_p6_1 = []
+        self.weight_p5_1 = []
+        self.weight_p4_1 = []
+        self.weight_p3_1 = []
+        self.weight_p6_2 = []
+        self.weight_p5_2 = []
+        self.weight_p4_2 = []
+        self.weight_p3_2 = []
+        self.weight_p6_1.clear()
+        self.weight_p5_1.clear()
+        self.weight_p4_1.clear()
+        self.weight_p3_1.clear()
+        self.weight_p3_2.clear()
+        self.weight_p4_2.clear()
+        self.weight_p5_2.clear()
+        self.weight_p6_2.clear()
+
+
+        self.weight_p6_1.append([self.hex2float("0x3eb37115"), self.hex2float("0x3f26449d")])
+        self.weight_p5_1.append([self.hex2float("0x3f35db7c"), self.hex2float("0x3e944361")])
+        self.weight_p4_1.append([self.hex2float("0x3ef7b104"), self.hex2float("0x3f042548")])
+        self.weight_p3_1.append([self.hex2float("0x3f01447d"), self.hex2float("0x3efd72c4")])
+        self.weight_p3_2.append([self.hex2float("0x3eeee6a9"), self.hex2float("0x3f088a97"), self.hex2float("0x0")])
+        self.weight_p4_2.append([self.hex2float("0x3f68799b"), self.hex2float("0x3dbc1ac5"), self.hex2float("0x0")])
+        self.weight_p5_2.append([self.hex2float("0x3f2d33bc"), self.hex2float("0x3e830c60"), self.hex2float("0x3d8a2074")])
+        self.weight_p6_2.append([self.hex2float("0x3f14da23"), self.hex2float("0x3ed64757")])
+        
+        self.weight_p6_1.append([self.hex2float("0x3ecb13c4"), self.hex2float("0x3f1a72e7")])
+        self.weight_p5_1.append([self.hex2float("0x3ef1e158"), self.hex2float("0x3f070c81")])
+        self.weight_p4_1.append([self.hex2float("0x3f1d2519"), self.hex2float("0x3ec5b0b8")])
+        self.weight_p3_1.append([self.hex2float("0x3f3cc1ce"), self.hex2float("0x3e867798")])
+        self.weight_p3_2.append([self.hex2float("0x3e89c622"), self.hex2float("0x3f0374f0"), self.hex2float("0x3e5e984e")])
+        self.weight_p4_2.append([self.hex2float("0x3f18653f"), self.hex2float("0x3ea934b8"), self.hex2float("0x3d97f1c3")])
+        self.weight_p5_2.append([self.hex2float("0x3eb48c13"), self.hex2float("0x3ce0c706"), self.hex2float("0x3f1eb138")])
+        self.weight_p6_2.append([self.hex2float("0x3f1e94c7"), self.hex2float("0x3ec2d0f0")])
+        
+        self.weight_p6_1.append([self.hex2float("0x3f257965"), self.hex2float("0x3eb506a4")])
+        self.weight_p5_1.append([self.hex2float("0x3efb61a4"), self.hex2float("0x3f024c0e")])
+        self.weight_p4_1.append([self.hex2float("0x3f1dea5d"), self.hex2float("0x3ec425bc")])
+        self.weight_p3_1.append([self.hex2float("0x3f4d9d5e"), self.hex2float("0x3e497faa")])
+        self.weight_p3_2.append([self.hex2float("0x3e8a4141"), self.hex2float("0x3f1ae133"), self.hex2float("0x3dffe0d3")])
+        self.weight_p4_2.append([self.hex2float("0x3ec3e7c6"), self.hex2float("0x3e5d1e5c"), self.hex2float("0x3ecd8542")])
+        self.weight_p5_2.append([self.hex2float("0x3dc8c0d2"), self.hex2float("0x3ea09642"), self.hex2float("0x3f169a64")])
+        self.weight_p6_2.append([self.hex2float("0x3f13df92"), self.hex2float("0x3ed83b12")])
+        
+        self.weight_p6_1.append([self.hex2float("0x3f222c3e"), self.hex2float("0x3ebba1d2")])
+        self.weight_p5_1.append([self.hex2float("0x3effbf80"), self.hex2float("0x3f001d6b")])
+        self.weight_p4_1.append([self.hex2float("0x3f0b99a2"), self.hex2float("0x3ee8c763")])
+        self.weight_p3_1.append([self.hex2float("0x3f39cbce"), self.hex2float("0x3e8c63a4")])
+        self.weight_p3_2.append([self.hex2float("0x3e86f76f"), self.hex2float("0x3f055105"), self.hex2float("0x3e5cc5a8")])
+        self.weight_p4_2.append([self.hex2float("0x3e914b9d"), self.hex2float("0x3e5efc1a"), self.hex2float("0x3eff3271")])
+        self.weight_p5_2.append([self.hex2float("0x3d77ebf7"), self.hex2float("0x3eb7a769"), self.hex2float("0x3f14ab39")])
+        self.weight_p6_2.append([self.hex2float("0x3eebaf36"), self.hex2float("0x3f0a2567")])
+        
+        self.weight_p6_1.append([self.hex2float("0x3f0539b6"), self.hex2float("0x3ef58761")])
+        self.weight_p5_1.append([self.hex2float("0x3ef02351"), self.hex2float("0x3f07ebb2")])
+        self.weight_p4_1.append([self.hex2float("0x3f1215f7"), self.hex2float("0x3edbcf17")])
+        self.weight_p3_1.append([self.hex2float("0x3f1457ea"), self.hex2float("0x3ed74c5e")])
+        self.weight_p3_2.append([self.hex2float("0x3e256b25"), self.hex2float("0x3ee3f088"), self.hex2float("0x3ec9564b")])
+        self.weight_p4_2.append([self.hex2float("0x3e4438cf"), self.hex2float("0x3ec84ce1"), self.hex2float("0x3ed59320")])
+        self.weight_p5_2.append([self.hex2float("0x3dcd12a0"), self.hex2float("0x3ed2c85e"), self.hex2float("0x3ef9eed7")])
+        self.weight_p6_2.append([self.hex2float("0x3e48eee4"), self.hex2float("0x3f4dc0c3")])
+
+        self.weight_p6_1.append([self.hex2float("0x3f04ccb5"), self.hex2float("0x3ef66127")])
+        self.weight_p5_1.append([self.hex2float("0x3eed880d"), self.hex2float("0x3f093941")])
+        self.weight_p4_1.append([self.hex2float("0x3effb230"), self.hex2float("0x3f002414")])
+        self.weight_p3_1.append([self.hex2float("0x3f31c26e"), self.hex2float("0x3e9c7656")])
+        self.weight_p3_2.append([self.hex2float("0x3e72bab6"), self.hex2float("0x3edf6449"), self.hex2float("0x3ea73aae")])
+        self.weight_p4_2.append([self.hex2float("0x3e940808"), self.hex2float("0x3e9dbad6"), self.hex2float("0x3ece3952")])
+        self.weight_p5_2.append([self.hex2float("0x3b9f33c6"), self.hex2float("0x3ec6a2f2"), self.hex2float("0x3f1b6db1")])
+        self.weight_p6_2.append([self.hex2float("0x3ec3ff9b"), self.hex2float("0x3f1dfd70")])
+
+        self.weight_p6_1.append([self.hex2float("0x3ecaf1b7"), self.hex2float("0x3f1a840d")])
+        self.weight_p5_1.append([self.hex2float("0x3ecbb94f"), self.hex2float("0x3f1a208d")])
+        self.weight_p4_1.append([self.hex2float("0x3ef6e61f"), self.hex2float("0x3f048a8c")])
+        self.weight_p3_1.append([self.hex2float("0x3f00d2c1"), self.hex2float("0x3efe5675")])
+        self.weight_p3_2.append([self.hex2float("0x3e729312"), self.hex2float("0x3e86843d"), self.hex2float("0x3f00174b")])
+        self.weight_p4_2.append([self.hex2float("0x3e5d212b"), self.hex2float("0x3e92145c"), self.hex2float("0x3eff5768")])
+        self.weight_p5_2.append([self.hex2float("0x3df85e54"), self.hex2float("0x3e9e4930"), self.hex2float("0x3f11cd8a")])
+        self.weight_p6_2.append([self.hex2float("0x3e4986ba"), self.hex2float("0x3f4d9acd")])
+
         self.p4_w2 = nn.Parameter(torch.ones(3, dtype=torch.float32), requires_grad=True)
         self.p4_w2_relu = nn.ReLU()
         self.p5_w2 = nn.Parameter(torch.ones(3, dtype=torch.float32), requires_grad=True)
@@ -416,6 +498,7 @@ class BiFPN_infer(nn.Module):
         self.p7_w2 = nn.Parameter(torch.ones(2, dtype=torch.float32), requires_grad=True)
         self.p7_w2_relu = nn.ReLU()
 
+        self.idx = index
         self.attention = attention
 
 
@@ -478,75 +561,86 @@ class BiFPN_infer(nn.Module):
         # P7_0 to P7_2
 
         # Weights for P6_0 and P7_0 to P6_1
-        p6_w1 = self.p6_w1_relu(self.p6_w1)
-        weight = p6_w1 / (torch.sum(p6_w1, dim=0) + self.epsilon)
-        export = weight.cpu().detach().numpy()
-        print("self.weight_p6_1.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), " ])")
+        # p6_w1 = self.p6_w1_relu(self.p6_w1)
+        # weight = p6_w1 / (torch.sum(p6_w1, dim=0) + self.epsilon)
+        # export = weight.cpu().detach().numpy()
+        # print("self.weight_p6_1.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), " ])")
         # Connections for P6_0 and P7_0 to P6_1 respectively
-        p6_up = self.conv6_up(self.swish(weight[0] * p6_in + weight[1] * self.p6_upsample(p7_in)))
+        # p6_up = self.conv6_up(self.swish(weight[0] * p6_in + weight[1] * self.p6_upsample(p7_in)))
+        p6_up = self.conv6_up(self.swish(self.weight_p6_1[self.idx][0] * p6_in + self.weight_p6_1[self.idx][1] * self.p6_upsample(p7_in)))
 
         # Weights for P5_0 and P6_1 to P5_1
-        p5_w1 = self.p5_w1_relu(self.p5_w1)
-        weight = p5_w1 / (torch.sum(p5_w1, dim=0) + self.epsilon)
-        export = weight.cpu().detach().numpy()
-        print("self.weight_p5_1.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), " ])")
+        # p5_w1 = self.p5_w1_relu(self.p5_w1)
+        # weight = p5_w1 / (torch.sum(p5_w1, dim=0) + self.epsilon)
+        # export = weight.cpu().detach().numpy()
+        # print("self.weight_p5_1.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), " ])")
         # Connections for P5_0 and P6_1 to P5_1 respectively
-        p5_up = self.conv5_up(self.swish(weight[0] * p5_in + weight[1] * self.p5_upsample(p6_up)))
+        # p5_up = self.conv5_up(self.swish(weight[0] * p5_in + weight[1] * self.p5_upsample(p6_up)))
+        p5_up = self.conv5_up(self.swish(self.weight_p5_1[self.idx][0] * p5_in + self.weight_p5_1[self.idx][1] * self.p5_upsample(p6_up)))
 
         # Weights for P4_0 and P5_1 to P4_1
-        p4_w1 = self.p4_w1_relu(self.p4_w1)
-        weight = p4_w1 / (torch.sum(p4_w1, dim=0) + self.epsilon)
-        export = weight.cpu().detach().numpy()
-        print("self.weight_p4_1.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), " ])")
+        # p4_w1 = self.p4_w1_relu(self.p4_w1)
+        # weight = p4_w1 / (torch.sum(p4_w1, dim=0) + self.epsilon)
+        # export = weight.cpu().detach().numpy()
+        # print("self.weight_p4_1.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), " ])")
         # Connections for P4_0 and P5_1 to P4_1 respectively
-        p4_up = self.conv4_up(self.swish(weight[0] * p4_in + weight[1] * self.p4_upsample(p5_up)))
+        # p4_up = self.conv4_up(self.swish(weight[0] * p4_in + weight[1] * self.p4_upsample(p5_up)))
+        p4_up = self.conv4_up(self.swish(self.weight_p4_1[self.idx][0] * p4_in + self.weight_p4_1[self.idx][1] * self.p4_upsample(p5_up)))
 
         # Weights for P3_0 and P4_1 to P3_2
-        p3_w1 = self.p3_w1_relu(self.p3_w1)
-        weight = p3_w1 / (torch.sum(p3_w1, dim=0) + self.epsilon)
-        export = weight.cpu().detach().numpy()
-        print("self.weight_p3_1.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), " ])")
+        # p3_w1 = self.p3_w1_relu(self.p3_w1)
+        # weight = p3_w1 / (torch.sum(p3_w1, dim=0) + self.epsilon)
+        # export = weight.cpu().detach().numpy()
+        # print("self.weight_p3_1.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), " ])")
         # Connections for P3_0 and P4_1 to P3_2 respectively
-        p3_out = self.conv3_up(self.swish(weight[0] * p3_in + weight[1] * self.p3_upsample(p4_up)))
+        # p3_out = self.conv3_up(self.swish(weight[0] * p3_in + weight[1] * self.p3_upsample(p4_up)))
+        p3_out = self.conv3_up(self.swish(self.weight_p3_1[self.idx][0] * p3_in + self.weight_p3_1[self.idx][1] * self.p3_upsample(p4_up)))
 
         if self.first_time:
             p4_in = self.p4_down_channel_2(p4)
             p5_in = self.p5_down_channel_2(p5)
 
         # Weights for P4_0, P4_1 and P3_2 to P4_2
-        p4_w2 = self.p4_w2_relu(self.p4_w2)
-        weight = p4_w2 / (torch.sum(p4_w2, dim=0) + self.epsilon)
-        export = weight.cpu().detach().numpy()
-        print("self.weight_p3_2.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), ", ", self.float_to_hex(export[2]), " ])")
+        # p4_w2 = self.p4_w2_relu(self.p4_w2)
+        # weight = p4_w2 / (torch.sum(p4_w2, dim=0) + self.epsilon)
+        # export = weight.cpu().detach().numpy()
+        # print("self.weight_p3_2.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), ", ", self.float_to_hex(export[2]), " ])")
         # Connections for P4_0, P4_1 and P3_2 to P4_2 respectively
+        # p4_out = self.conv4_down(
+        #     self.swish(weight[0] * p4_in + weight[1] * p4_up + weight[2] * self.p4_downsample(p3_out)))
         p4_out = self.conv4_down(
-            self.swish(weight[0] * p4_in + weight[1] * p4_up + weight[2] * self.p4_downsample(p3_out)))
+            self.swish(self.weight_p3_2[self.idx][0] * p4_in + self.weight_p3_2[self.idx][1] * p4_up + self.weight_p3_2[self.idx][2] * self.p4_downsample(p3_out)))
 
         # Weights for P5_0, P5_1 and P4_2 to P5_2
-        p5_w2 = self.p5_w2_relu(self.p5_w2)
-        weight = p5_w2 / (torch.sum(p5_w2, dim=0) + self.epsilon)
-        export = weight.cpu().detach().numpy()
-        print("self.weight_p4_2.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), ", ", self.float_to_hex(export[2]), " ])")
+        # p5_w2 = self.p5_w2_relu(self.p5_w2)
+        # weight = p5_w2 / (torch.sum(p5_w2, dim=0) + self.epsilon)
+        # export = weight.cpu().detach().numpy()
+        # print("self.weight_p4_2.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), ", ", self.float_to_hex(export[2]), " ])")
         # Connections for P5_0, P5_1 and P4_2 to P5_2 respectively
+        # p5_out = self.conv5_down(
+        #     self.swish(weight[0] * p5_in + weight[1] * p5_up + weight[2] * self.p5_downsample(p4_out)))
         p5_out = self.conv5_down(
-            self.swish(weight[0] * p5_in + weight[1] * p5_up + weight[2] * self.p5_downsample(p4_out)))
+            self.swish(self.weight_p4_2[self.idx][0] * p5_in + self.weight_p4_2[self.idx][1] * p5_up + self.weight_p4_2[self.idx][2] * self.p5_downsample(p4_out)))
 
         # Weights for P6_0, P6_1 and P5_2 to P6_2
-        p6_w2 = self.p6_w2_relu(self.p6_w2)
-        weight = p6_w2 / (torch.sum(p6_w2, dim=0) + self.epsilon)
-        export = weight.cpu().detach().numpy()
-        print("self.weight_p5_2.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), ", ", self.float_to_hex(export[2]), " ])")
+        # p6_w2 = self.p6_w2_relu(self.p6_w2)
+        # weight = p6_w2 / (torch.sum(p6_w2, dim=0) + self.epsilon)
+        # export = weight.cpu().detach().numpy()
+        # print("self.weight_p5_2.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), ", ", self.float_to_hex(export[2]), " ])")
         # Connections for P6_0, P6_1 and P5_2 to P6_2 respectively
+        # p6_out = self.conv6_down(
+        #     self.swish(weight[0] * p6_in + weight[1] * p6_up + weight[2] * self.p6_downsample(p5_out)))
         p6_out = self.conv6_down(
-            self.swish(weight[0] * p6_in + weight[1] * p6_up + weight[2] * self.p6_downsample(p5_out)))
+            self.swish(self.weight_p5_2[self.idx][0] * p6_in + self.weight_p5_2[self.idx][1] * p6_up + self.weight_p5_2[self.idx][2] * self.p6_downsample(p5_out)))
 
         # Weights for P7_0 and P6_2 to P7_2
-        p7_w2 = self.p7_w2_relu(self.p7_w2)
-        weight = p7_w2 / (torch.sum(p7_w2, dim=0) + self.epsilon)
-        export = weight.cpu().detach().numpy()
-        print("self.weight_p6_2.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), " ])")
+        # p7_w2 = self.p7_w2_relu(self.p7_w2)
+        # weight = p7_w2 / (torch.sum(p7_w2, dim=0) + self.epsilon)
+        # export = weight.cpu().detach().numpy()
+        # print("self.weight_p6_2.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), " ])")
         # Connections for P7_0 and P6_2 to P7_2
-        p7_out = self.conv7_down(self.swish(weight[0] * p7_in + weight[1] * self.p7_downsample(p6_out)))
+        # p7_out = self.conv7_down(self.swish(weight[0] * p7_in + weight[1] * self.p7_downsample(p6_out)))
+        p7_out = self.conv7_down(self.swish(self.weight_p6_2[self.idx][0] * p7_in + self.weight_p6_2[self.idx][1] * self.p7_downsample(p6_out)))
 
         return p3_out, p4_out, p5_out, p6_out, p7_out
 

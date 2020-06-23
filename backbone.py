@@ -49,9 +49,9 @@ class EfficientDetBackbone(nn.Module):
             self.bifpn = nn.Sequential(
                 *[BiFPN_infer(self.fpn_num_filters[self.compound_coef],
                         conv_channel_coef[compound_coef],
-                        True if _ == 0 else False, onnx_export=onnx_export,
+                        True if _ == 0 else False, index=idx, onnx_export=onnx_export,
                         attention=True if compound_coef < 6 else False, image_size=head_image_size)
-                  for _ in range(self.fpn_cell_repeats[compound_coef])])
+                  for idx , _ in enumerate(range(self.fpn_cell_repeats[compound_coef]))])
 
         self.num_classes = num_classes
         self.regressor = Regressor(in_channels=self.fpn_num_filters[self.compound_coef], num_anchors=num_anchors,

@@ -70,16 +70,23 @@ class EfficientDetBackbone(nn.Module):
                 m.eval()
 
     def forward(self, inputs):
-        _, p3, p4, p5 = self.backbone_net(inputs)
+        # train mode
+        # _, p3, p4, p5 = self.backbone_net(inputs)
+        # features = (p3, p4, p5)
+        # features = self.bifpn(features)
+        # regression = self.regressor(features)
+        # classification = self.classifier(features)
+        # anchors = self.anchors(inputs, inputs.dtype)
+        # return features, regression, classification, anchors
 
+        # infer mode
+        inputs = inputs.permute(0, 3, 1, 2)
+        _, p3, p4, p5 = self.backbone_net(inputs)
         features = (p3, p4, p5)
         features = self.bifpn(features)
-
         regression = self.regressor(features)
         classification = self.classifier(features)
-        anchors = self.anchors(inputs, inputs.dtype)
-        #return regression, classification
-        return features, regression, classification, anchors
+        return regression, classification
 
     def init_backbone(self, path):
         state_dict = torch.load(path)

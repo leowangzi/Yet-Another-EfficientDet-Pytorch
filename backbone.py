@@ -5,13 +5,13 @@ import math
 import torch
 from torch import nn
 
-from efficientdet.model import BiFPN, Regressor, Classifier, EfficientNet
+from efficientdet.model import BiFPN, BiFPN_infer, Regressor, Classifier, EfficientNet
 from efficientdet.utils import Anchors
 from efficientnet.utils import calculate_output_image_size
 
 
 class EfficientDetBackbone(nn.Module):
-    def __init__(self, num_classes=80, compound_coef=0, load_weights=False, onnx_export=False, batch_size=1, **kwargs):
+    def __init__(self, num_classes=80, compound_coef=0, load_weights=False, onnx_export=False, train_mode=False, batch_size=1, **kwargs):
         super(EfficientDetBackbone, self).__init__()
         self.compound_coef = compound_coef
 
@@ -38,12 +38,20 @@ class EfficientDetBackbone(nn.Module):
         num_anchors = len(self.aspect_ratios) * self.num_scales
         head_image_size = calculate_output_image_size(self.input_sizes[compound_coef], 8)
 
-        self.bifpn = nn.Sequential(
-            *[BiFPN(self.fpn_num_filters[self.compound_coef],
-                    conv_channel_coef[compound_coef],
-                    True if _ == 0 else False, onnx_export=onnx_export,
-                    attention=True if compound_coef < 6 else False, image_size=head_image_size)
-              for _ in range(self.fpn_cell_repeats[compound_coef])])
+        if train_mode:
+            self.bifpn = nn.Sequential(
+                *[BiFPN(self.fpn_num_filters[self.compound_coef],
+                        conv_channel_coef[compound_coef],
+                        True if _ == 0 else False, onnx_export=onnx_export,
+                        attention=True if compound_coef < 6 else False, image_size=head_image_size)
+                  for _ in range(self.fpn_cell_repeats[compound_coef])])
+        else:
+            self.bifpn = nn.Sequential(
+                *[BiFPN_infer(self.fpn_num_filters[self.compound_coef],
+                        conv_channel_coef[compound_coef],
+                        True if _ == 0 else False, onnx_export=onnx_export,
+                        attention=True if compound_coef < 6 else False, image_size=head_image_size)
+                  for _ in range(self.fpn_cell_repeats[compound_coef])])
 
         self.num_classes = num_classes
         self.regressor = Regressor(in_channels=self.fpn_num_filters[self.compound_coef], num_anchors=num_anchors,

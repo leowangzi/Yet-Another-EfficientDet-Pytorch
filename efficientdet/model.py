@@ -6,7 +6,8 @@ from efficientnet import EfficientNet as EffNet
 from efficientnet.utils import MemoryEfficientSwish, Swish
 from efficientnet.utils import Conv2dStaticSamePadding, MaxPool2dStaticSamePadding
 from efficientnet.utils import calculate_output_image_size
-
+import struct
+import ctypes
 
 def nms(dets, thresh):
     return nms_torch(dets[:, :4], dets[:, 4], thresh)
@@ -332,7 +333,7 @@ class BiFPN_infer(nn.Module):
             epsilon: epsilon of fast weighted attention sum of BiFPN, not the BN's epsilon
             onnx_export: if True, use Swish instead of MemoryEfficientSwish
         """
-        super(BiFPN, self).__init__()
+        super(BiFPN_infer, self).__init__()
         self.epsilon = epsilon
         p3_image_size = calculate_output_image_size(image_size, 1)
         p4_image_size = calculate_output_image_size(image_size, 2)
@@ -417,6 +418,17 @@ class BiFPN_infer(nn.Module):
 
         self.attention = attention
 
+
+    def float_to_hex(self, f):
+        return hex(struct.unpack('<I', struct.pack('<f', f))[0])
+    
+    
+    def hex2float(self, h):
+        i = int(h, 16)
+        cp = ctypes.pointer(ctypes.c_int(i))
+        fp = ctypes.cast(cp, ctypes.POINTER(ctypes.c_float))
+        return fp.contents.value
+    
     def forward(self, inputs):
         """
         illustration of a minimal bifpn unit
@@ -468,24 +480,32 @@ class BiFPN_infer(nn.Module):
         # Weights for P6_0 and P7_0 to P6_1
         p6_w1 = self.p6_w1_relu(self.p6_w1)
         weight = p6_w1 / (torch.sum(p6_w1, dim=0) + self.epsilon)
+        export = weight.cpu().detach().numpy()
+        print("self.weight_p6_1.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), " ])")
         # Connections for P6_0 and P7_0 to P6_1 respectively
         p6_up = self.conv6_up(self.swish(weight[0] * p6_in + weight[1] * self.p6_upsample(p7_in)))
 
         # Weights for P5_0 and P6_1 to P5_1
         p5_w1 = self.p5_w1_relu(self.p5_w1)
         weight = p5_w1 / (torch.sum(p5_w1, dim=0) + self.epsilon)
+        export = weight.cpu().detach().numpy()
+        print("self.weight_p5_1.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), " ])")
         # Connections for P5_0 and P6_1 to P5_1 respectively
         p5_up = self.conv5_up(self.swish(weight[0] * p5_in + weight[1] * self.p5_upsample(p6_up)))
 
         # Weights for P4_0 and P5_1 to P4_1
         p4_w1 = self.p4_w1_relu(self.p4_w1)
         weight = p4_w1 / (torch.sum(p4_w1, dim=0) + self.epsilon)
+        export = weight.cpu().detach().numpy()
+        print("self.weight_p4_1.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), " ])")
         # Connections for P4_0 and P5_1 to P4_1 respectively
         p4_up = self.conv4_up(self.swish(weight[0] * p4_in + weight[1] * self.p4_upsample(p5_up)))
 
         # Weights for P3_0 and P4_1 to P3_2
         p3_w1 = self.p3_w1_relu(self.p3_w1)
         weight = p3_w1 / (torch.sum(p3_w1, dim=0) + self.epsilon)
+        export = weight.cpu().detach().numpy()
+        print("self.weight_p3_1.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), " ])")
         # Connections for P3_0 and P4_1 to P3_2 respectively
         p3_out = self.conv3_up(self.swish(weight[0] * p3_in + weight[1] * self.p3_upsample(p4_up)))
 
@@ -496,6 +516,8 @@ class BiFPN_infer(nn.Module):
         # Weights for P4_0, P4_1 and P3_2 to P4_2
         p4_w2 = self.p4_w2_relu(self.p4_w2)
         weight = p4_w2 / (torch.sum(p4_w2, dim=0) + self.epsilon)
+        export = weight.cpu().detach().numpy()
+        print("self.weight_p3_2.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), ", ", self.float_to_hex(export[2]), " ])")
         # Connections for P4_0, P4_1 and P3_2 to P4_2 respectively
         p4_out = self.conv4_down(
             self.swish(weight[0] * p4_in + weight[1] * p4_up + weight[2] * self.p4_downsample(p3_out)))
@@ -503,6 +525,8 @@ class BiFPN_infer(nn.Module):
         # Weights for P5_0, P5_1 and P4_2 to P5_2
         p5_w2 = self.p5_w2_relu(self.p5_w2)
         weight = p5_w2 / (torch.sum(p5_w2, dim=0) + self.epsilon)
+        export = weight.cpu().detach().numpy()
+        print("self.weight_p4_2.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), ", ", self.float_to_hex(export[2]), " ])")
         # Connections for P5_0, P5_1 and P4_2 to P5_2 respectively
         p5_out = self.conv5_down(
             self.swish(weight[0] * p5_in + weight[1] * p5_up + weight[2] * self.p5_downsample(p4_out)))
@@ -510,6 +534,8 @@ class BiFPN_infer(nn.Module):
         # Weights for P6_0, P6_1 and P5_2 to P6_2
         p6_w2 = self.p6_w2_relu(self.p6_w2)
         weight = p6_w2 / (torch.sum(p6_w2, dim=0) + self.epsilon)
+        export = weight.cpu().detach().numpy()
+        print("self.weight_p5_2.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), ", ", self.float_to_hex(export[2]), " ])")
         # Connections for P6_0, P6_1 and P5_2 to P6_2 respectively
         p6_out = self.conv6_down(
             self.swish(weight[0] * p6_in + weight[1] * p6_up + weight[2] * self.p6_downsample(p5_out)))
@@ -517,12 +543,15 @@ class BiFPN_infer(nn.Module):
         # Weights for P7_0 and P6_2 to P7_2
         p7_w2 = self.p7_w2_relu(self.p7_w2)
         weight = p7_w2 / (torch.sum(p7_w2, dim=0) + self.epsilon)
+        export = weight.cpu().detach().numpy()
+        print("self.weight_p6_2.append([", self.float_to_hex(export[0]), ", ", self.float_to_hex(export[1]), " ])")
         # Connections for P7_0 and P6_2 to P7_2
         p7_out = self.conv7_down(self.swish(weight[0] * p7_in + weight[1] * self.p7_downsample(p6_out)))
 
         return p3_out, p4_out, p5_out, p6_out, p7_out
 
     def _forward(self, inputs):
+        print("not attention!!")
         if self.first_time:
             p3, p4, p5 = inputs
 

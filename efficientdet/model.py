@@ -318,7 +318,7 @@ class BiFPN(nn.Module):
 
 class Regressor(nn.Module):
     """
-    modified by Zylo117
+    modified by Zylo117, Lichao
     """
 
     def __init__(self, in_channels, num_anchors, num_layers, onnx_export=False, image_size=None, compound_coef=0, batch_size=1):
@@ -337,10 +337,6 @@ class Regressor(nn.Module):
                 [230400, 57600, 14400, 3600, 900],
                 [331776, 82944, 20736, 5184, 1296]
                 ]
-        # self.num_layers = num_layers
-
-        # self.conv_list = nn.ModuleList(
-        #     [SeparableConvBlock(in_channels, in_channels, norm=False, activation=False) for i in range(num_layers)])
 
         temp_image_size = image_size
         conv_list = []
@@ -353,7 +349,7 @@ class Regressor(nn.Module):
         self.bn_list = nn.ModuleList(
             [nn.ModuleList([nn.BatchNorm2d(in_channels, momentum=0.01, eps=1e-3) for i in range(num_layers)]) for j in
              range(5)])
-        # self.header = SeparableConvBlock(in_channels, num_anchors * 4, norm=False, activation=False)
+
         image_size = temp_image_size
         h_list = []
         for _ in range(5):
@@ -364,20 +360,6 @@ class Regressor(nn.Module):
         self.swish = MemoryEfficientSwish() if not onnx_export else Swish()
 
     def forward(self, inputs):
-        # feats = []
-        # for feat, bn_list in zip(inputs, self.bn_list):
-        #     for i, bn, conv in zip(range(self.num_layers), bn_list, self.conv_list):
-        #         feat = conv(feat)
-        #         feat = bn(feat)
-        #         feat = self.swish(feat)
-        #     feat = self.header(feat)
-
-        #     feat = feat.permute(0, 2, 3, 1)
-        #     feat = feat.contiguous().view(feat.shape[0], -1, 4)
-
-        #     feats.append(feat)
-
-        # feats = torch.cat(feats, dim=1)
         feats = []
         for ids, feat, bn_list, header, convs in zip(self.index, inputs, self.bn_list, self.headers, self.conv_list):
             for _, bn, conv in zip(range(self.num_layers), bn_list, convs):
@@ -400,7 +382,7 @@ class Regressor(nn.Module):
 
 class Classifier(nn.Module):
     """
-    modified by Zylo117
+    modified by Zylo117, Lichao
     """
 
     def __init__(self, in_channels, num_anchors, num_classes, num_layers, onnx_export=False, image_size=None, compound_coef=0, batch_size=1):
@@ -481,8 +463,7 @@ class Classifier(nn.Module):
                     ]
 
             ]
-        # self.conv_list = nn.ModuleList(
-        #     [SeparableConvBlock(in_channels, in_channels, norm=False, activation=False) for i in range(num_layers)])
+
         temp_image_size = image_size
         conv_list = []
         for _ in range(5):
@@ -494,37 +475,21 @@ class Classifier(nn.Module):
         self.bn_list = nn.ModuleList(
             [nn.ModuleList([nn.BatchNorm2d(in_channels, momentum=0.01, eps=1e-3) for i in range(num_layers)]) for j in
              range(5)])
-        # self.header = SeparableConvBlock(in_channels, num_anchors * num_classes, norm=False, activation=False)
+
         image_size = temp_image_size
         h_list = []
 
-        for i in range(5):
+        for _ in range(5):
             h_list.append(SeparableConvBlock(in_channels, num_anchors * num_classes, norm=False, activation=False, image_size=image_size))
             image_size = calculate_output_image_size(image_size, 2)
         self.headers = nn.ModuleList(h_list)
 
         self.swish = MemoryEfficientSwish() if not onnx_export else Swish()
+
     def forward(self, inputs):
-        # feats = []
-        # for feat, bn_list in zip(inputs, self.bn_list):
-        #     for i, bn, conv in zip(range(self.num_layers), bn_list, self.conv_list):
-        #         feat = conv(feat)
-        #         feat = bn(feat)
-        #         feat = self.swish(feat)
-        #     feat = self.header(feat)
-
-        #     feat = feat.permute(0, 2, 3, 1)
-        #     feat = feat.contiguous().view(feat.shape[0], feat.shape[1], feat.shape[2], self.num_anchors,
-        #                                   self.num_classes)
-        #     feat = feat.contiguous().view(feat.shape[0], -1, self.num_classes)
-
-        #     feats.append(feat)
-
-        # feats = torch.cat(feats, dim=1)
-        # feats = feats.sigmoid()
         feats = []
         for ids, feat, bn_list, header, convs in zip(self.index, inputs, self.bn_list, self.headers, self.conv_list):
-            for i, bn, conv in zip(range(self.num_layers), bn_list, convs):
+            for _, bn, conv in zip(range(self.num_layers), bn_list, convs):
                 feat = conv(feat)
                 feat = bn(feat)
                 feat = self.swish(feat)
@@ -548,7 +513,7 @@ class Classifier(nn.Module):
 
 class EfficientNet(nn.Module):
     """
-    modified by Zylo117
+    modified by Zylo117, Lichao
     """
 
     def __init__(self, compound_coef, load_weights=False):
@@ -588,7 +553,5 @@ class EfficientNet(nn.Module):
 
 if __name__ == '__main__':
     from tensorboardX import SummaryWriter
-
-
     def count_parameters(model):
         return sum(p.numel() for p in model.parameters() if p.requires_grad)

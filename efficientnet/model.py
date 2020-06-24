@@ -93,7 +93,7 @@ class MBConvBlock(nn.Module):
         # Squeeze and Excitation
         if self.has_se:
             # x_squeezed = F.adaptive_avg_pool2d(x, 1)
-            x_squeezed = F.adaptive_avg_pool2d(x, 10)
+            x_squeezed = F.adaptive_avg_pool2d(x, 6)
             x_squeezed = F.adaptive_avg_pool2d(x_squeezed, 1)
             x_squeezed = self._se_reduce(x_squeezed)
             x_squeezed = self._swish(x_squeezed)
